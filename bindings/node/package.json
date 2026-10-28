@@ -1,0 +1,32 @@
+{
+  "name": "@lazypilottt/s3f",
+  "version": "0.1.0-rc.2",
+  "description": "Node.js bindings for s3f — S3 ops, but fearlessly fast!",
+  "author": "Lazypilottt",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lazypilottt/s3f"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "3.6.2"
+  },
+  "napi": {
+    "binaryName": "s3f",
+    "targets": [
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl"
+    ]
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md"
+  ]
+}

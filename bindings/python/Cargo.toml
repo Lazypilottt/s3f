@@ -1,0 +1,23 @@
+[dependencies]
+pyo3 = { workspace = true }
+s3f = { path = "../../crates/core" }
+tokio = { workspace = true }
+
+[lib]
+crate-type = ["cdylib"]
+name = "s3f_py"
+
+[lints]
+workspace = true
+
+[package]
+description = "Python bindings for s3f — S3 ops, but fearlessly fast!"
+name = "s3f-python"
+readme = "../../README.md"
+version = "0.1.0-rc.2"
+authors = ["Lazypilottt"]
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true

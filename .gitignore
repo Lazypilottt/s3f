@@ -1,0 +1,28 @@
+/target
+.mise.local.toml
+perf_bench.py
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+
+# FFI build artifacts
+bindings/python/s3f.pyi
+bindings/node/s3f.node
+bindings/node/index.js
+
+# Rust example (standalone, has its own target)
+examples/rust/target/
+
+# Bindings workspace (standalone, has its own target)
+bindings/target/
+
+# Docs (Next.js / fumadocs)
+docs/.next/
+docs/.source/
+docs/node_modules/

@@ -1,0 +1,30 @@
+[[bin]]
+name = "s3f"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+indicatif = { workspace = true }
+s3f = { path = "../core" }
+tokio = { workspace = true }
+tracing-subscriber = { optional = true, workspace = true }
+
+[features]
+default = []
+tracing = ["dep:tracing-subscriber", "s3f/tracing"]
+
+[lints]
+workspace = true
+
+[package]
+description = "CLI for s3f — ultra-fast S3 operations!"
+name = "s3f-cli"
+readme = "../../README.md"
+version = "0.1.0-rc.2"
+authors = ["Lazypilottt"]
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true

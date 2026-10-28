@@ -1,0 +1,72 @@
+[env]
+AWS_ACCESS_KEY_ID = "GK000000000000000000000000"
+AWS_REGION = "us-east-1"
+AWS_SECRET_ACCESS_KEY = "0000000000000000000000000000000000000000000000000000000000000000"
+BENCH_BUCKET = "bench-bucket"
+COMPOSE_PROFILES = "all"
+S3_ENDPOINT_GARAGE = "http://localhost:9700"
+S3_ENDPOINT_MINIO = "http://localhost:9000"
+S3_ENDPOINT_RUSTFS = "http://localhost:9300"
+S3_ENDPOINT_SEAWEEDFS = "http://localhost:9500"
+_.python.venv = { create = true, path = "bench/.venv" }
+
+[tasks.bench]
+description = "Run full benchmark (all backends, all tools, ~10-15 min)"
+dir = "bench"
+run = "uv run s3f-bench run {{arg(name='ops', var=true, default='')}}"
+
+[tasks."bench:compare"]
+description = "Compare latest local run against the dev baseline"
+dir = "bench"
+run = "uv run s3f-bench compare {{arg(name='extra', var=true, default='')}}"
+
+[tasks."bench:dev"]
+description = "Run dev benchmark (minio, s3f+s5cmd+mc, ~3-5 min)"
+dir = "bench"
+run = "uv run s3f-bench run --dev {{arg(name='ops', var=true, default='')}}"
+
+[tasks."bench:fmt"]
+description = "Format the benchmark code"
+dir = "bench"
+run = "uv run ruff format ."
+
+[tasks."bench:lint"]
+description = "Lint and type-check the benchmark code"
+dir = "bench"
+run = "uv run ruff format . && uv run ruff check . && ty check bench/"
+
+[tasks."bench:noise"]
+description = "Characterize harness noise floor (run once per machine)"
+dir = "bench"
+run = "uv run s3f-bench noise {{arg(name='extra', var=true, default='')}}"
+
+[tasks."bench:plot"]
+description = "Plot the latest run (local takes precedence over committed)"
+dir = "bench"
+run = "uv run s3f-bench plot"
+
+[tasks."bench:save"]
+description = "Persist latest run (full → benchmarks/, dev → baseline)"
+dir = "bench"
+run = "uv run s3f-bench save"
+
+[tasks."bench:sweep"]
+description = "Run a sweep — pass 'size' or 'concurrency' (e.g. mise run bench:sweep size)"
+dir = "bench"
+run = "uv run s3f-bench sweep {{arg(name='args', var=true, default='')}}"
+
+[tools]
+awscli = "2.34.32"
+git-cliff = "latest"
+lefthook = "2.1.1"
+mc = "RELEASE.2025-08-13T08-35-41Z"
+"npm:@commitlint/cli" = "20.4.1"
+"npm:@commitlint/config-conventional" = "20.4.1"
+"npm:eclint" = "2.8.1"
+"npm:markdownlint-cli" = "0.47.0"
+"pipx:toml-sort" = "0.23.1"
+python = "3.14.2"
+rust = "1.95.0"
+s5cmd = "2.3.0"
+taplo = "0.10.0"
+uv = "0.9.28"

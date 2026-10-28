@@ -1,0 +1,95 @@
+# The profile that 'dist' will build with
+
+[profile.dist]
+codegen-units = 1
+inherits = "release"
+lto = "fat"
+opt-level = "z"
+strip = "symbols"
+
+[workspace]
+exclude = ["bindings", "examples/rust"]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.dependencies]
+anyhow = "1"
+aws-credential-types = { features = ["hardcoded-credentials"], version = "1" }
+aws-sigv4 = { features = ["sign-http"], version = "1" }
+bytes = "1"
+clap = { features = ["derive", "env"], version = "4" }
+futures-util = "0.3"
+http = "1"
+indicatif = "0.18"
+napi = { features = ["async", "napi9"], version = "3" }
+napi-build = "2"
+napi-derive = "3"
+percent-encoding = "2"
+pyo3 = { features = [
+  "experimental-inspect",
+  "extension-module",
+], version = "0.28" }
+quick-xml = { features = ["serialize"], version = "0.39" }
+reqwest = { default-features = false, features = [
+  "rustls",
+  "stream",
+], version = "0.13" }
+serde = { features = ["derive"], version = "1" }
+tempfile = "3"
+thiserror = "2"
+tokio = { features = [
+  "fs",
+  "macros",
+  "rt-multi-thread",
+  "sync",
+], version = "1" }
+tokio-util = { features = ["io"], version = "0.7" }
+tracing = "0.1"
+tracing-subscriber = { features = ["env-filter", "fmt"], version = "0.3" }
+walkdir = "2"
+wiremock = "0.6"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+# Restriction lints opted into individually (the group is not meant to be enabled wholesale).
+arithmetic_side_effects = "warn"
+as_conversions = "warn"
+cargo = { level = "deny", priority = -1 }
+expect_used = "warn"
+float_arithmetic = "warn"
+multiple_inherent_impl = "warn"
+nursery = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+print_stderr = "warn"
+print_stdout = "warn"
+redundant_pub_crate = "allow"
+too_many_arguments = "warn"
+
+[workspace.lints.rust]
+elided_lifetimes_in_paths = "deny"
+keyword_idents = { level = "forbid", priority = -1 }
+let_underscore_drop = "deny"
+meta_variable_misuse = "deny"
+missing_copy_implementations = "deny"
+missing_debug_implementations = "deny"
+missing_docs = "deny"
+non_ascii_idents = "forbid"
+rust_2024_compatibility = { level = "deny", priority = -1 }
+single_use_lifetimes = "deny"
+trivial_casts = "deny"
+trivial_numeric_casts = "deny"
+unreachable_pub = "deny"
+unsafe_code = "forbid"
+unused_crate_dependencies = "deny"
+unused_import_braces = "deny"
+unused_lifetimes = "deny"
+unused_macro_rules = "deny"
+unused_qualifications = "deny"
+variant_size_differences = "deny"
+
+[workspace.package]
+categories = ["asynchronous", "network-programming", "web-programming"]
+edition = "2024"
+keywords = ["aws", "cloud", "multithread", "s3", "storage"]
+license = "MIT"
+repository = "https://github.com/Lazypilottt/s3f"

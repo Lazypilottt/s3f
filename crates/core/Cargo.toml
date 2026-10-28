@@ -1,0 +1,38 @@
+[dependencies]
+aws-credential-types = { workspace = true }
+aws-sigv4 = { workspace = true }
+bytes = { workspace = true }
+futures-util = { workspace = true }
+http = { workspace = true }
+percent-encoding = { workspace = true }
+quick-xml = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { optional = true, workspace = true }
+walkdir = { workspace = true }
+
+[dev-dependencies]
+wiremock = { workspace = true }
+
+[features]
+default = []
+tracing = ["dep:tracing"]
+
+[lints]
+workspace = true
+
+[package]
+description = "Ultra-fast, lightweight S3 client — fearlessly fast!"
+name = "s3f"
+readme = "README.md"
+version = "0.1.0-rc.2"
+authors = ["Lazypilottt"]
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true

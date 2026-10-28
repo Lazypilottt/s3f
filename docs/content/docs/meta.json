@@ -1,0 +1,13 @@
+{
+  "title": "s3f",
+  "pages": [
+    "...Overview...",
+    "index",
+    "benchmarks",
+    "cli",
+    "...Languages...",
+    "rust",
+    "python",
+    "node"
+  ]
+}
