@@ -8,7 +8,7 @@ use tokio::time::sleep;
 use crate::{
     config::RetryPolicy,
     error::{Error, Result},
-    http::response,
+    http::{HttpClient, response},
     trace::{maybe_debug, maybe_warn},
 };
 
@@ -35,6 +35,12 @@ fn jittered(base: Duration) -> Duration {
     );
     let jitter = entropy % half.saturating_add(1);
     Duration::from_nanos(u64::try_from(half + jitter).unwrap_or(u64::MAX))
+}
+
+/// Jittered delay before retry number `attempt` (0-based) under `policy`.
+pub(crate) fn backoff(policy: &RetryPolicy, attempt: u32) -> Duration {
+    let factor = 2_u32.saturating_pow(attempt);
+    jittered(policy.base_delay.saturating_mul(factor).min(policy.max_delay))
 }
 
 /// Classify a response and either return it or extract a retryable error.
@@ -69,7 +75,7 @@ async fn classify(resp: reqwest::Response) -> Outcome {
 /// Returns the last encountered error after all retries are exhausted,
 /// or a 4xx error immediately.
 pub(crate) async fn send_with_retry(
-    http: &reqwest::Client, req: http::Request<Bytes>, policy: &RetryPolicy,
+    http: &HttpClient, req: http::Request<Bytes>, policy: &RetryPolicy,
 ) -> Result<reqwest::Response> {
     let method = req.method().clone();
     let uri = req.uri().clone();
@@ -81,7 +87,7 @@ pub(crate) async fn send_with_retry(
 
 /// Core retry loop shared by all send variants.
 async fn send_retry_loop(
-    http: &reqwest::Client, method: http::Method, uri: &http::Uri, headers: &http::HeaderMap,
+    http: &HttpClient, method: http::Method, uri: &http::Uri, headers: &http::HeaderMap,
     body: Bytes, policy: &RetryPolicy,
 ) -> Result<reqwest::Response> {
     let mut last_err = None;
@@ -91,6 +97,7 @@ async fn send_retry_loop(
 
     for attempt in 0..attempts {
         let reqwest_req = http
+            .inner()
             .request(method.clone(), &uri_string)
             .headers(headers.clone())
             .body(body.clone())
@@ -101,7 +108,7 @@ async fn send_retry_loop(
         #[cfg(feature = "tracing")]
         let start = std::time::Instant::now();
 
-        match http.execute(reqwest_req).await {
+        match http.execute(reqwest_req, policy.hedge).await {
             Ok(resp) => {
                 #[cfg(feature = "tracing")]
                 let elapsed = start.elapsed();
@@ -153,7 +160,7 @@ async fn send_retry_loop(
 /// Re-signing on every attempt ensures the `SigV4` timestamp stays current
 /// even after long backoff delays.
 pub(crate) async fn send_with_retry_stream<S, SF, B, BF>(
-    http: &reqwest::Client, make_request: S, make_body: B, policy: &RetryPolicy,
+    http: &HttpClient, make_request: S, make_body: B, policy: &RetryPolicy,
 ) -> Result<reqwest::Response>
 where
     S: Fn() -> SF,
@@ -173,15 +180,19 @@ where
 
         let body = make_body().await?;
 
-        let reqwest_req =
-            http.request(method.clone(), uri.to_string()).headers(headers).body(body).build()?;
+        let reqwest_req = http
+            .inner()
+            .request(method.clone(), uri.to_string())
+            .headers(headers)
+            .body(body)
+            .build()?;
 
         maybe_debug!(%method, %uri, attempt, "sending request");
 
         #[cfg(feature = "tracing")]
         let start = std::time::Instant::now();
 
-        match http.execute(reqwest_req).await {
+        match http.execute(reqwest_req, policy.hedge).await {
             Ok(resp) => {
                 #[cfg(feature = "tracing")]
                 let elapsed = start.elapsed();
@@ -239,6 +250,8 @@ mod tests {
             base_delay: Duration::from_millis(1),
             max_delay: Duration::from_millis(10),
             max_retries,
+            hedge: false,
+            stall_timeout: Duration::from_secs(5),
         }
     }
 
@@ -255,7 +268,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = reqwest::Client::new();
+        let client = HttpClient::from(reqwest::Client::new());
         let req = build_request(&server.uri());
         let resp = send_with_retry(&client, req, &fast_policy(3)).await.unwrap();
         assert_eq!(resp.status(), 200);
@@ -279,7 +292,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = reqwest::Client::new();
+        let client = HttpClient::from(reqwest::Client::new());
         let req = build_request(&server.uri());
         let resp = send_with_retry(&client, req, &fast_policy(5)).await.unwrap();
         assert_eq!(resp.status(), 200);
@@ -303,7 +316,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = reqwest::Client::new();
+        let client = HttpClient::from(reqwest::Client::new());
         let req = build_request(&server.uri());
         let resp = send_with_retry(&client, req, &fast_policy(3)).await.unwrap();
         assert_eq!(resp.status(), 200);
@@ -322,7 +335,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = reqwest::Client::new();
+        let client = HttpClient::from(reqwest::Client::new());
         let req = build_request(&server.uri());
         let err = send_with_retry(&client, req, &fast_policy(3)).await.unwrap_err();
         match err {
@@ -343,7 +356,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = reqwest::Client::new();
+        let client = HttpClient::from(reqwest::Client::new());
         let req = build_request(&server.uri());
         let err = send_with_retry(&client, req, &fast_policy(2)).await.unwrap_err();
         assert!(matches!(err, Error::S3 { .. }));
@@ -358,7 +371,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = reqwest::Client::new();
+        let client = HttpClient::from(reqwest::Client::new());
         let uri_str = server.uri();
         let resp = send_with_retry_stream(
             &client,
@@ -400,7 +413,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = reqwest::Client::new();
+        let client = HttpClient::from(reqwest::Client::new());
         let uri_str = server.uri();
         let resp = send_with_retry_stream(
             &client,
@@ -439,7 +452,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = reqwest::Client::new();
+        let client = HttpClient::from(reqwest::Client::new());
         let uri_str = server.uri();
         let err = send_with_retry_stream(
             &client,

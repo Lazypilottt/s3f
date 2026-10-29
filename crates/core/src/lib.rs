@@ -15,9 +15,8 @@
 //! let client = S3Client::new(Config::new("us-east-1", CredentialSource::Env)).await?;
 //!
 //! // Upload a whole directory with automatic multipart logic
-//! let result = client.upload(
-//!     UploadRequest::new(vec!["./data".into()], "my-bucket", "uploads/")
-//! ).await?;
+//! let result =
+//!     client.upload(UploadRequest::new(vec!["./data".into()], "my-bucket", "uploads/")).await?;
 //!
 //! // See what got uploaded
 //! for f in &result.files {
@@ -49,6 +48,8 @@ pub mod config;
 pub mod error;
 mod http;
 pub mod ops;
+#[cfg(test)]
+mod test_support;
 pub(crate) mod trace;
 mod transfer;
 

@@ -79,6 +79,10 @@ pub(crate) struct ListArgs {
     /// Key prefix to filter by (e.g. `data/2024/`).
     #[arg(short, long, default_value = "")]
     pub prefix: String,
+
+    /// Concurrent list requests (1 lists serially).
+    #[arg(short, long, default_value_t = 32)]
+    pub workers: usize,
 }
 
 /// Arguments for the upload subcommand.

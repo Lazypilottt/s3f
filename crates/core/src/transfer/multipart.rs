@@ -29,6 +29,7 @@ use crate::{
     config::Config,
     error::{Error, Result},
     http::{
+        HttpClient,
         ObjectKey,
         request::{build_signed, build_signed_unsigned_payload},
         response,
@@ -46,7 +47,7 @@ struct UploadCtx {
     bucket: String,
     config: Config,
     creds: Credentials,
-    http: reqwest::Client,
+    http: HttpClient,
     key: ObjectKey,
     upload_id: String,
 }
@@ -101,7 +102,7 @@ impl Drop for AbortGuard {
 
 /// `DELETE /{bucket}/{key}?uploadId=X` — abort a multipart upload.
 async fn abort(
-    http: &reqwest::Client, config: &Config, creds: &Credentials, bucket: &str, key: &ObjectKey,
+    http: &HttpClient, config: &Config, creds: &Credentials, bucket: &str, key: &ObjectKey,
     upload_id: &str,
 ) -> Result<()> {
     let uri: Uri =
@@ -115,7 +116,7 @@ async fn abort(
 
 /// `POST /{bucket}/{key}?uploadId=X` with XML body — complete multipart.
 async fn complete(
-    http: &reqwest::Client, config: &Config, creds: &Credentials, bucket: &str, key: &ObjectKey,
+    http: &HttpClient, config: &Config, creds: &Credentials, bucket: &str, key: &ObjectKey,
     upload_id: &str, results: &mut [PartResult],
 ) -> Result<String> {
     results.sort_by_key(|r| r.number);
@@ -140,7 +141,7 @@ async fn complete(
 
 /// `POST /{bucket}/{key}?uploads` — initiate multipart upload.
 async fn initiate(
-    http: &reqwest::Client, config: &Config, creds: &Credentials, bucket: &str, key: &ObjectKey,
+    http: &HttpClient, config: &Config, creds: &Credentials, bucket: &str, key: &ObjectKey,
 ) -> Result<String> {
     let uri: Uri =
         format!("{}/{bucket}/{}?uploads", config.endpoint_url(), key.encoded()).parse()?;
@@ -158,7 +159,7 @@ async fn initiate(
 /// Returns an error if initiation, any part upload, or completion fails.
 #[expect(clippy::too_many_arguments, reason = "internal fn, context struct would add indirection")]
 pub(crate) async fn upload_multipart(
-    http: &reqwest::Client, config: &Config, creds: &Credentials, bucket: &str, key: &ObjectKey,
+    http: &HttpClient, config: &Config, creds: &Credentials, bucket: &str, key: &ObjectKey,
     parts: &[Part], file_path: &Path, concurrency: usize,
 ) -> Result<(String, u32)> {
     assert!(concurrency > 0, "concurrency must be at least 1");

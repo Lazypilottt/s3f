@@ -8,6 +8,7 @@ use crate::{
     auth::{self, Credentials},
     config::{Config, TransferConfig},
     error::Result,
+    http::{HttpClient, dns::SpreadResolver},
 };
 
 /// Your gateway to S3. Cheap to clone (shares the connection pool under the hood).
@@ -17,7 +18,7 @@ use crate::{
 pub struct S3Client {
     pub(crate) config: Config,
     pub(crate) creds: Credentials,
-    pub(crate) http: reqwest::Client,
+    pub(crate) http: HttpClient,
 }
 
 impl S3Client {
@@ -48,13 +49,21 @@ impl S3Client {
         // interact with TCP delayed-ACK (~40 ms stalls per chunk).
         // http1_only: S3 backends speak HTTP/1.1; skip ALPN negotiation
         // to avoid an extra round trip on every new connection.
+        // SpreadResolver: start each new connection on a different S3
+        // front-end IP so throughput isn't capped by a single server.
+        // read_timeout: a connection that stops delivering data errors out
+        // and is retried instead of hanging the transfer.
         let http = reqwest::Client::builder()
+            .dns_resolver(SpreadResolver::default())
             .pool_max_idle_per_host(TransferConfig::MAX_IDLE_CONNECTIONS)
             .tcp_keepalive(Duration::from_secs(30))
             .pool_idle_timeout(Duration::from_secs(90))
             .tcp_nodelay(true)
             .http1_only()
-            .build()?;
+            .connect_timeout(Duration::from_secs(10))
+            .read_timeout(config.retry.stall_timeout)
+            .build()?
+            .into();
 
         Ok(Self {
             config,

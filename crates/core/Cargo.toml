@@ -10,12 +10,13 @@ reqwest = { workspace = true }
 serde = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true }
+tokio = { features = ["net"], workspace = true }
 tokio-util = { workspace = true }
 tracing = { optional = true, workspace = true }
 walkdir = { workspace = true }
 
 [dev-dependencies]
+tokio = { features = ["io-util", "net", "time"], workspace = true }
 wiremock = { workspace = true }
 
 [features]

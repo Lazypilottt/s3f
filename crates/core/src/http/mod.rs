@@ -1,11 +1,14 @@
 //! HTTP layer — request building and response parsing.
 
+pub(crate) mod dns;
+pub(crate) mod hedge;
 pub(crate) mod request;
 pub(crate) mod response;
 pub(crate) mod retry;
 
 use core::fmt;
 
+pub(crate) use hedge::HttpClient;
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC};
 
 /// Characters that must be percent-encoded in S3 key segments.

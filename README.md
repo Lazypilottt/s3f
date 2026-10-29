@@ -23,20 +23,46 @@ SeaweedFS.
 
 ## Features
 
+### Throughput
+
+- **Parallel listing.** S3 returns keys 1,000 at a time, and each page waits
+  for the one before it. s3f splits the key space into ranges, estimated from
+  the keys it has already seen, and lists them concurrently. Nested
+  `dir/subdir/` layouts are walked one level at a time in parallel. The result
+  is the same set of keys a serial listing returns.
 - **Parallel transfers at two levels.** Many files at once, and many parts per
   file. Large uploads use multipart upload. Large downloads use concurrent
-  `Range` requests that write directly into place on disk.
-- **Bounded memory.** Upload parts stream from disk instead of being held in
-  RAM, so a 50 GB file needs about as much memory as a 50 MB one.
-- **Adaptive part sizing.** Part size and per-file concurrency scale with file
-  size, within S3's 10,000-part limit.
+  `Range` requests that write directly into place on disk. Part size and
+  per-file concurrency scale with file size, within S3's 10,000-part limit.
+- **Adaptive downloads.** Files from 16 MiB up to 2 GiB start as a single
+  GET. If the first 8 MiB arrive slowly, the rest is split across extra
+  connections, all pinned to the same `ETag` so a concurrent overwrite can't
+  mix versions.
+- **Connections spread across servers.** S3 limits throughput per
+  connection. New connections rotate through every S3 front-end address seen
+  in DNS, rather than all landing on the first one.
 - **Auto-tuned downloads.** If you don't set them, worker count and per-file
   concurrency are picked from the size distribution of the objects being
   fetched.
+
+### Reliability
+
+- **Hedged requests.** A GET or list request that hasn't answered within the
+  95th percentile of recent latency is sent again on another connection, and
+  the first answer wins. In a large batch, a few stalled requests no longer
+  set the finish time. Hedges are capped at 10% of requests.
+- **Resumable downloads.** If a connection drops mid-download, the part
+  resumes from the last byte received. Connections that stop delivering data
+  time out and are retried instead of hanging.
 - **Retries with backoff.** `5xx` and `429` responses are retried with
   exponential backoff and jitter.
 - **Crash-safe downloads.** Data goes to a temporary file that is moved into
   place only once complete, so an interrupted run never leaves partial files.
+
+### Footprint
+
+- **Bounded memory.** Upload parts stream from disk instead of being held in
+  RAM, so a 50 GB file needs about as much memory as a 50 MB one.
 - **One core, several front ends.** The same Rust engine powers the CLI, the
   Rust crate, and the Python and Node.js packages.
 
@@ -149,17 +175,18 @@ of small files, fewer workers with more parts each for large ones.
 
 ### `s3f ls`
 
-Lists objects under a prefix with their size and last-modified date, followed
-by a total.
+Lists objects under a prefix, sorted by key, with their size and
+last-modified date, followed by a total.
 
 ```bash
 s3f ls -b my-bucket -p uploads/
 ```
 
-| Flag           | Default  | Description          |
-| -------------- | -------- | -------------------- |
-| `-b, --bucket` | required | Bucket to list       |
-| `-p, --prefix` | `""`     | Key prefix to filter |
+| Flag            | Default  | Description                              |
+| --------------- | -------- | ---------------------------------------- |
+| `-b, --bucket`  | required | Bucket to list                           |
+| `-p, --prefix`  | `""`     | Key prefix to filter                     |
+| `-w, --workers` | `32`     | Concurrent list requests (`1` = serial)  |
 
 ## Library usage
 
@@ -201,8 +228,9 @@ let config = Config::with_endpoint(
 );
 ```
 
-Retry policy, multipart thresholds, and default part size can be changed
-through `config.retry` and `config.transfer`. See the
+Retries, hedging, and the stall timeout are set through `config.retry`.
+Multipart thresholds and part size are set through `config.transfer`. List
+concurrency is set per request with `ListRequest::with_concurrency`. See the
 [crate docs](https://docs.rs/s3f) for the full API.
 
 ### Python
@@ -330,6 +358,15 @@ mise run bench:compare    # exits non-zero on regression
 mise run bench            # all backends and tools, ~10–15 min
 mise run bench:save       # save to benchmarks/<run-id>/
 mise run bench:plot       # regenerate plots/
+```
+
+Local Docker backends have almost no network latency and rarely stall, so
+they don't show the effect of parallel listing, hedging, or adaptive
+downloads. Those have micro-benchmarks against an in-process fake S3 that adds per-request
+latency, per-connection bandwidth caps, and stalled requests:
+
+```bash
+cargo test --release -p s3f bench_ -- --ignored --nocapture
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for commit conventions and pre-commit

@@ -6,10 +6,12 @@ use aws_credential_types::Credentials as AwsCreds;
 use aws_sigv4::{
     http_request::{
         PayloadChecksumKind,
+        PercentEncodingMode,
         SignableBody,
         SignableRequest,
         SignatureLocation,
         SigningSettings,
+        UriPathNormalizationMode,
         sign as sigv4_sign,
     },
     sign::v4::SigningParams,
@@ -39,6 +41,11 @@ pub(crate) fn sign_request(
     let mut settings = SigningSettings::default();
     settings.payload_checksum_kind = PayloadChecksumKind::XAmzSha256;
     settings.signature_location = SignatureLocation::Headers;
+    // S3 signs the path exactly as sent. The defaults (meant for other AWS
+    // services) re-encode it — `%3D` would be signed as `%253D` — and
+    // normalize it, which breaks keys with `=`, spaces, `&` or non-ASCII.
+    settings.percent_encoding_mode = PercentEncodingMode::Single;
+    settings.uri_path_normalization_mode = UriPathNormalizationMode::Disabled;
 
     let identity = aws_creds.into();
     let signing_params = SigningParams::builder()

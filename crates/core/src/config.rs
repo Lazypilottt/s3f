@@ -11,7 +11,7 @@ use crate::auth::CredentialSource;
 pub struct Config {
     /// Where to get AWS credentials (from env, hardcoded, whatever).
     pub credentials: CredentialSource,
-    /// Point to a different S3 endpoint (MinIO, R2, GCS, etc.).
+    /// Point to a different S3 endpoint (`MinIO`, R2, GCS, etc.).
     /// Leave as `None` to use AWS default.
     pub endpoint: Option<String>,
     /// AWS region (e.g. `us-east-1`).
@@ -34,6 +34,12 @@ pub struct RetryPolicy {
     pub max_delay: Duration,
     /// Give up after this many attempts.
     pub max_retries: u32,
+    /// Send a backup copy of a GET that is slow to answer, and use whichever
+    /// responds first. Adds at most 10% more requests. On by default.
+    pub hedge: bool,
+    /// Fail a connection that goes this long without receiving data, so a
+    /// stalled transfer is retried instead of hanging.
+    pub stall_timeout: Duration,
 }
 
 /// Tuning parameters for file transfers (uploads/downloads).
@@ -109,6 +115,8 @@ impl Default for RetryPolicy {
             base_delay: Duration::from_millis(100),
             max_delay: Duration::from_secs(30),
             max_retries: 5,
+            hedge: true,
+            stall_timeout: Duration::from_secs(60),
         }
     }
 }
@@ -154,6 +162,8 @@ mod tests {
         assert_eq!(policy.max_retries, 5);
         assert_eq!(policy.base_delay, Duration::from_millis(100));
         assert_eq!(policy.max_delay, Duration::from_secs(30));
+        assert!(policy.hedge);
+        assert_eq!(policy.stall_timeout, Duration::from_secs(60));
     }
 
     #[test]

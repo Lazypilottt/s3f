@@ -18,7 +18,12 @@ use crate::{
     client::S3Client,
     config::{Config, TransferConfig},
     error::{Error, Result},
-    http::{ObjectKey, request::build_signed_unsigned_payload, retry::send_with_retry_stream},
+    http::{
+        HttpClient,
+        ObjectKey,
+        request::build_signed_unsigned_payload,
+        retry::send_with_retry_stream,
+    },
     trace::{maybe_debug, maybe_info},
     transfer::{multipart, pool, scheduler},
 };
@@ -242,7 +247,7 @@ const STREAM_BUFFER_SIZE: usize = 256 * 1024;
 /// Uses `UNSIGNED-PAYLOAD` signing and streams the file through a 256 KiB
 /// buffer — peak memory per worker is 256 KiB regardless of file size.
 async fn single_put(
-    http: &reqwest::Client, config: &Config, creds: &Credentials, bucket: &str, key: &ObjectKey,
+    http: &HttpClient, config: &Config, creds: &Credentials, bucket: &str, key: &ObjectKey,
     path: &Path, size: u64,
 ) -> Result<(String, u32)> {
     let uri: http::Uri = format!("{}/{bucket}/{}", config.endpoint_url(), key.encoded()).parse()?;
@@ -294,7 +299,7 @@ async fn single_put(
 /// concurrent streams (lower RSS/contention), large files use more
 /// to saturate bandwidth. See [`scheduler::concurrency_for_size`].
 async fn upload_single_file(
-    http: &reqwest::Client, config: &Config, creds: &Credentials, bucket: &str, key: &ObjectKey,
+    http: &HttpClient, config: &Config, creds: &Credentials, bucket: &str, key: &ObjectKey,
     path: &Path, _concurrency: usize,
 ) -> Result<FileUploadResult> {
     let metadata = fs::metadata(path).await?;
